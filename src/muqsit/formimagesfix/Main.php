@@ -63,7 +63,7 @@ final class Main extends PluginBase implements Listener{
 		if($event->getPacket() instanceof ModalFormRequestPacket){
 			$player = $event->getPlayer();
 			$this->onPacketSend($event->getPlayer(), static function() use($player) : void{
-				$player->addSubTitle("");
+				$player->addTitle("", "", 0, 0, 0);
 			});
 		}
 	}
