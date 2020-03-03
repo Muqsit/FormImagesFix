@@ -13,6 +13,7 @@ use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\Player;
 use pocketmine\plugin\PluginBase;
+use pocketmine\scheduler\ClosureTask;
 
 final class Main extends PluginBase implements Listener{
 
@@ -24,12 +25,16 @@ final class Main extends PluginBase implements Listener{
 	}
 
 	private function onPacketSend(Player $player, Closure $callback) : void{
-		$ts = mt_rand() * 1000;
-		$pk = new NetworkStackLatencyPacket();
-		$pk->timestamp = $ts;
-		$pk->needResponse = true;
-		$player->sendDataPacket($pk);
-		$this->callbacks[$player->getId()][$ts] = $callback;
+		$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTicK) use($player, $callback) : void{
+			if($player->isOnline()){
+				$ts = mt_rand() * 1000;
+				$pk = new NetworkStackLatencyPacket();
+				$pk->timestamp = $ts;
+				$pk->needResponse = true;
+				$player->sendDataPacket($pk);
+				$this->callbacks[$player->getId()][$ts] = $callback;
+			}
+		}), 1);
 	}
 
 	/**
