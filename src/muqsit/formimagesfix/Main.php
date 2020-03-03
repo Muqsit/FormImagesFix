@@ -25,7 +25,7 @@ final class Main extends PluginBase implements Listener{
 	}
 
 	private function onPacketSend(Player $player, Closure $callback) : void{
-		$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTicK) use($player, $callback) : void{
+		$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($player, $callback) : void{
 			if($player->isOnline()){
 				$ts = mt_rand() * 1000;
 				$pk = new NetworkStackLatencyPacket();
@@ -44,13 +44,10 @@ final class Main extends PluginBase implements Listener{
 	 */
 	public function onDataPacketReceive(DataPacketReceiveEvent $event) : void{
 		$packet = $event->getPacket();
-		if($packet instanceof NetworkStackLatencyPacket){
-			$player = $event->getPlayer();
-			if(isset($this->callbacks[$id = $player->getId()][$ts = $packet->timestamp])){
-				$cb = $this->callbacks[$id][$ts];
-				unset($this->callbacks[$id][$ts]);
-				$cb();
-			}
+		if($packet instanceof NetworkStackLatencyPacket && isset($this->callbacks[$id = $event->getPlayer()->getId()][$ts = $packet->timestamp])){
+			$cb = $this->callbacks[$id][$ts];
+			unset($this->callbacks[$id][$ts]);
+			$cb();
 		}
 	}
 
@@ -62,8 +59,10 @@ final class Main extends PluginBase implements Listener{
 	public function onDataPacketSend(DataPacketSendEvent $event) : void{
 		if($event->getPacket() instanceof ModalFormRequestPacket){
 			$player = $event->getPlayer();
-			$this->onPacketSend($event->getPlayer(), static function() use($player) : void{
-				$player->addTitle("", "", 0, 0, 0);
+			$this->onPacketSend($player, static function() use($player) : void{
+				if($player->isOnline()){
+					$player->addTitle("", "", 0, 0, 0);
+				}
 			});
 		}
 	}
