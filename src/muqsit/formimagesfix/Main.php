@@ -13,7 +13,7 @@ use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
 
@@ -22,7 +22,7 @@ final class Main extends PluginBase implements Listener{
 	/** @var Closure[][] */
 	private $callbacks = [];
 
-	public function onEnable() : void{
+	protected function onEnable() : void{
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
 	}
 
@@ -31,47 +31,52 @@ final class Main extends PluginBase implements Listener{
 		$pk = new NetworkStackLatencyPacket();
 		$pk->timestamp = $ts;
 		$pk->needResponse = true;
-		$player->sendDataPacket($pk);
+		$player->getNetworkSession()->sendDataPacket($pk);
 		$this->callbacks[$player->getId()][$ts] = $callback;
 	}
 
 	/**
 	 * @param DataPacketReceiveEvent $event
 	 * @priority MONITOR
-	 * @ignoreCancelled true
 	 */
 	public function onDataPacketReceive(DataPacketReceiveEvent $event) : void{
 		$packet = $event->getPacket();
-		if($packet instanceof NetworkStackLatencyPacket && isset($this->callbacks[$id = $event->getPlayer()->getId()][$ts = $packet->timestamp])){
-			$cb = $this->callbacks[$id][$ts];
-			unset($this->callbacks[$id][$ts]);
-			if(count($this->callbacks[$id]) === 0){
-				unset($this->callbacks[$id]);
+		if($packet instanceof NetworkStackLatencyPacket){
+			$player = $event->getOrigin()->getPlayer();
+			if($player !== null && isset($this->callbacks[$id = $player->getId()][$ts = $packet->timestamp])){
+				$cb = $this->callbacks[$id][$ts];
+				unset($this->callbacks[$id][$ts]);
+				if(count($this->callbacks[$id]) === 0){
+					unset($this->callbacks[$id]);
+				}
+				$cb();
 			}
-			$cb();
 		}
 	}
 
 	/**
 	 * @param DataPacketSendEvent $event
 	 * @priority MONITOR
-	 * @ignoreCancelled true
 	 */
 	public function onDataPacketSend(DataPacketSendEvent $event) : void{
-		if($event->getPacket() instanceof ModalFormRequestPacket){
-			$player = $event->getPlayer();
-			$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($player) : void{
-				if($player->isOnline()){
-					$this->onPacketSend($player, static function() use($player) : void{
-						if($player->isOnline()){
-							$pk = new UpdateAttributesPacket();
-							$pk->entityRuntimeId = $player->getId();
-							$pk->entries[] = $player->getAttributeMap()->getAttribute(Attribute::EXPERIENCE_LEVEL);
-							$player->sendDataPacket($pk);
+		foreach($event->getPackets() as $packet){
+			if($packet instanceof ModalFormRequestPacket){
+				foreach($event->getTargets() as $target){
+					$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($target) : void{
+						$player = $target->getPlayer();
+						if($player !== null && $player->isOnline()){
+							$this->onPacketSend($player, static function() use($player, $target) : void{
+								if($player->isOnline()){
+									$pk = new UpdateAttributesPacket();
+									$pk->entityRuntimeId = $player->getId();
+									$pk->entries[] = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
+									$target->sendDataPacket($pk);
+								}
+							});
 						}
-					});
+					}), 1);
 				}
-			}), 1);
+			}
 		}
 	}
 
