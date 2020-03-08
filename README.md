@@ -1,6 +1,9 @@
 # FormImagesFix
 Fixes button icon `type: "url"` images taking too long to load up.
 
+### Installation
+Grab a .phar file from poggit. Make sure to pick the one targeting YOUR API version, or visit https://github.com/Muqsit/FormImagesFix/wiki/Downloads instead. Place it in your `plugins/` folder, no additional configuration required.
+
 ### Is this what featured servers use too?
 No. This is infact faster (pretty much instantaneous) than form image loading on featured servers... at least until a developer on a featured server finds out about this "fix".
 
