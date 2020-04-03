@@ -16,14 +16,19 @@ use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
+use pocketmine\scheduler\TaskHandler;
 
 final class Main extends PluginBase implements Listener{
 
 	/** @var Closure[][] */
 	private $callbacks = [];
 
+	/** @var int */
+	private $times_to_request;
+
 	public function onEnable() : void{
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+		$this->times_to_request = (int) $this->getConfig()->get("times-to-request");
 	}
 
 	private function onPacketSend(Player $player, Closure $callback) : void{
@@ -52,6 +57,13 @@ final class Main extends PluginBase implements Listener{
 		}
 	}
 
+	private function requestUpdate(Player $player) : void{
+		$pk = new UpdateAttributesPacket();
+		$pk->entityRuntimeId = $player->getId();
+		$pk->entries[] = $player->getAttributeMap()->getAttribute(Attribute::EXPERIENCE_LEVEL);
+		$player->sendDataPacket($pk);
+	}
+
 	/**
 	 * @param DataPacketSendEvent $event
 	 * @priority MONITOR
@@ -62,12 +74,22 @@ final class Main extends PluginBase implements Listener{
 			$player = $event->getPlayer();
 			$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($player) : void{
 				if($player->isOnline()){
-					$this->onPacketSend($player, static function() use($player) : void{
+					$this->onPacketSend($player, function() use($player) : void{
 						if($player->isOnline()){
-							$pk = new UpdateAttributesPacket();
-							$pk->entityRuntimeId = $player->getId();
-							$pk->entries[] = $player->getAttributeMap()->getAttribute(Attribute::EXPERIENCE_LEVEL);
-							$player->sendDataPacket($pk);
+							$this->requestUpdate($player);
+							if($this->times_to_request > 1){
+								$times = $this->times_to_request - 1;
+								/** @var TaskHandler|null $handler */
+								$handler = null;
+								$handler = $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function(int $currentTick) use($player, $times, &$handler) : void{
+									if(--$times >= 0 && $player->isOnline()){
+										$this->requestUpdate($player);
+									}else{
+										$handler->cancel();
+										$handler = null;
+									}
+								}), 10);
+							}
 						}
 					});
 				}

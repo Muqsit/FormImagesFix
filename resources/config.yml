@@ -1,0 +1,4 @@
+# Number of times this "fix" should request the client to "fix" the images
+# A value of 5 would cover about (5 x 500)ms client -> image host latency
+# Default value of TTR: 5
+times-to-request: 5
