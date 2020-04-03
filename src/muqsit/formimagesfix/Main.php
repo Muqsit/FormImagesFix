@@ -13,6 +13,7 @@ use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
+use pocketmine\network\mcpe\protocol\types\entity\Attribute as NetworkAttribute;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
@@ -53,9 +54,10 @@ final class Main extends PluginBase implements Listener{
 	}
 
 	private function requestUpdate(Player $player) : void{
+		$attribute = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
 		$pk = new UpdateAttributesPacket();
 		$pk->entityRuntimeId = $player->getId();
-		$pk->entries[] = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
+		$pk->entries[] = new NetworkAttribute($attribute->getId(), $attribute->getMinValue(), $attribute->getMaxValue(), $attribute->getValue(), $attribute->getDefaultValue());
 		$player->getNetworkSession()->sendDataPacket($pk);
 	}
 
