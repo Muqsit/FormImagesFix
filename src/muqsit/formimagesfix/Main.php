@@ -38,39 +38,55 @@ final class Main extends PluginBase implements Listener{
 	/**
 	 * @param DataPacketReceiveEvent $event
 	 * @priority MONITOR
+	 * @ignoreCancelled true
 	 */
 	public function onDataPacketReceive(DataPacketReceiveEvent $event) : void{
 		$packet = $event->getPacket();
-		if($packet instanceof NetworkStackLatencyPacket){
-			$player = $event->getOrigin()->getPlayer();
-			if($player !== null && isset($this->callbacks[$id = $player->getId()][$ts = $packet->timestamp])){
-				$cb = $this->callbacks[$id][$ts];
-				unset($this->callbacks[$id][$ts]);
-				if(count($this->callbacks[$id]) === 0){
-					unset($this->callbacks[$id]);
-				}
-				$cb();
+		if($packet instanceof NetworkStackLatencyPacket && isset($this->callbacks[$id = $event->getOrigin()->getPlayer()->getId()][$ts = $packet->timestamp])){
+			$cb = $this->callbacks[$id][$ts];
+			unset($this->callbacks[$id][$ts]);
+			if(count($this->callbacks[$id]) === 0){
+				unset($this->callbacks[$id]);
 			}
+			$cb();
 		}
+	}
+
+	private function requestUpdate(Player $player) : void{
+		$pk = new UpdateAttributesPacket();
+		$pk->entityRuntimeId = $player->getId();
+		$pk->entries[] = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
+		$player->getNetworkSession()->sendDataPacket($pk);
 	}
 
 	/**
 	 * @param DataPacketSendEvent $event
 	 * @priority MONITOR
+	 * @ignoreCancelled true
 	 */
 	public function onDataPacketSend(DataPacketSendEvent $event) : void{
 		foreach($event->getPackets() as $packet){
 			if($packet instanceof ModalFormRequestPacket){
-				foreach($event->getTargets() as $target){
-					$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($target) : void{
-						$player = $target->getPlayer();
-						if($player !== null && $player->isOnline()){
-							$this->onPacketSend($player, static function() use($player, $target) : void{
+				foreach($event->getTargets() as $session){
+					$player = $session->getPlayer();
+					$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($player) : void{
+						if($player->isOnline()){
+							$this->onPacketSend($player, function() use($player) : void{
 								if($player->isOnline()){
-									$pk = new UpdateAttributesPacket();
-									$pk->entityRuntimeId = $player->getId();
-									$pk->entries[] = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
-									$target->sendDataPacket($pk);
+									$this->requestUpdate($player);
+									if($this->times_to_request > 1){
+										$times = $this->times_to_request - 1;
+										/** @var TaskHandler|null $handler */
+										$handler = null;
+										$handler = $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function(int $currentTick) use($player, $times, &$handler) : void{
+											if(--$times >= 0 && $player->isOnline()){
+												$this->requestUpdate($player);
+											}else{
+												$handler->cancel();
+												$handler = null;
+											}
+										}), 10);
+									}
 								}
 							});
 						}
