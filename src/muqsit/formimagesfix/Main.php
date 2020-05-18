@@ -12,9 +12,11 @@ use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
+use pocketmine\network\mcpe\protocol\types\entity\Attribute as NetworkAttribute;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
+use pocketmine\scheduler\CancellableClosureTask;
 use pocketmine\scheduler\ClosureTask;
 
 final class Main extends PluginBase implements Listener{
@@ -62,15 +64,24 @@ final class Main extends PluginBase implements Listener{
 		foreach($event->getPackets() as $packet){
 			if($packet instanceof ModalFormRequestPacket){
 				foreach($event->getTargets() as $target){
-					$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $currentTick) use($target) : void{
+					$this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($target) : void{
 						$player = $target->getPlayer();
 						if($player !== null && $player->isOnline()){
-							$this->onPacketSend($player, static function() use($player, $target) : void{
+							$this->onPacketSend($player, function() use($player, $target) : void{
 								if($player->isOnline()){
-									$pk = new UpdateAttributesPacket();
-									$pk->entityRuntimeId = $player->getId();
-									$pk->entries[] = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
-									$target->sendDataPacket($pk);
+									$times = 5; // send for up to 5 x 10 ticks (or 2500ms)
+									$this->getScheduler()->scheduleRepeatingTask(new CancellableClosureTask(static function() use($player, $target, &$times) : bool{
+										if(--$times >= 0 && $target->isConnected()){
+											$pk = new UpdateAttributesPacket();
+											$pk->entityRuntimeId = $player->getId();
+											$attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
+											/** @noinspection NullPointerExceptionInspection */
+											$pk->entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue());
+											$target->sendDataPacket($pk);
+											return true;
+										}
+										return false;
+									}), 10);
 								}
 							});
 						}
