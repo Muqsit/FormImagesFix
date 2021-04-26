@@ -16,7 +16,7 @@ use pocketmine\network\mcpe\protocol\types\entity\Attribute as NetworkAttribute;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
-use pocketmine\scheduler\CancellableClosureTask;
+use pocketmine\scheduler\CancelTaskException;
 use pocketmine\scheduler\ClosureTask;
 
 final class Main extends PluginBase implements Listener{
@@ -70,7 +70,7 @@ final class Main extends PluginBase implements Listener{
 							$this->onPacketSend($player, function() use($player, $target) : void{
 								if($player->isOnline()){
 									$times = 5; // send for up to 5 x 10 ticks (or 2500ms)
-									$this->getScheduler()->scheduleRepeatingTask(new CancellableClosureTask(static function() use($player, $target, &$times) : bool{
+									$this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
 										if(--$times >= 0 && $target->isConnected()){
 											$pk = new UpdateAttributesPacket();
 											$pk->entityRuntimeId = $player->getId();
@@ -78,9 +78,10 @@ final class Main extends PluginBase implements Listener{
 											/** @noinspection NullPointerExceptionInspection */
 											$pk->entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue());
 											$target->sendDataPacket($pk);
-											return true;
+											return;
 										}
-										return false;
+
+										throw new CancelTaskException("Maximum retries exceeded");
 									}), 10);
 								}
 							});
