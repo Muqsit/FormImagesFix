@@ -72,12 +72,11 @@ final class Main extends PluginBase implements Listener{
 									$times = 5; // send for up to 5 x 10 ticks (or 2500ms)
 									$this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
 										if(--$times >= 0 && $target->isConnected()){
-											$pk = new UpdateAttributesPacket();
-											$pk->entityRuntimeId = $player->getId();
+											$entries = [];
 											$attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
 											/** @noinspection NullPointerExceptionInspection */
-											$pk->entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue());
-											$target->sendDataPacket($pk);
+											$entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue());
+											$target->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
 											return;
 										}
 
