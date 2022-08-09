@@ -75,7 +75,7 @@ final class Main extends PluginBase implements Listener{
 											$entries = [];
 											$attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
 											/** @noinspection NullPointerExceptionInspection */
-											$entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue());
+											$entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), []);
 											$target->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
 											return;
 										}
