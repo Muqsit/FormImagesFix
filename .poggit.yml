@@ -3,7 +3,7 @@ build-by-default: true
 branches:
 - master
 - pm-4.0
-- PM5
+- pm5
 projects:
   FormImagesFix:
     path: ""
