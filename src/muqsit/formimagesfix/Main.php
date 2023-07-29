@@ -31,17 +31,14 @@ final class Main extends PluginBase implements Listener{
                 foreach($event->getTargets() as $target){
                     $player = $target->getPlayer();
                     $ts = time();
-                    $pk = new NetworkStackLatencyPacket();
-                    $pk->timestamp = $ts;
-                    $pk->needResponse = true;
+                    $pk = NetworkStackLatencyPacket::request($ts);
                     $player->getNetworkSession()->sendDataPacket($pk);
                     if($player->isOnline()){
                         $times = 5;
                         $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
-                            $entries = [];
                             $attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
                             /** @noinspection NullPointerExceptionInspection */
-                            $entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), []);
+                            $entries = [new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), [])];
                             $target->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
                             if(--$times === 0){
                                 throw new CancelTaskException();
