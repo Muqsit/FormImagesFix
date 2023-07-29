@@ -30,18 +30,18 @@ final class Main extends PluginBase implements Listener{
             if($packet instanceof ModalFormRequestPacket){
                 foreach($event->getTargets() as $target){
                     $player = $target->getPlayer();
-                    if($player->isOnline()){
-                        $times = 5;
-                        $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
-                            $attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
-                            /** @noinspection NullPointerExceptionInspection */
-                            $entries = [new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), [])];
+                    $times = 5;
+                    $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
+                        $attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
+                        /** @noinspection NullPointerExceptionInspection */
+                        $entries = [new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), [])];
+                        if($player->isOnline()){
                             $target->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
-                            if(--$times === 0){
-                                throw new CancelTaskException();
-                            }
-                        }), 10);
-                    }
+                        }
+                        if(--$times === 0){
+                            throw new CancelTaskException();
+                        }
+                    }), 10);
                 }
             }
         }
