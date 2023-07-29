@@ -30,6 +30,9 @@ final class Main extends PluginBase implements Listener{
             if($packet instanceof ModalFormRequestPacket){
                 foreach($event->getTargets() as $target){
                     $player = $target->getPlayer();
+					if ($player === null || !$player->isOnline()) {
+						continue;
+					}
                     $times = 5;
                     $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, &$times) : void {
                         if($times-- === 0 || !$player->isOnline()){
