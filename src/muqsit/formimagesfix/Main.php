@@ -31,16 +31,14 @@ final class Main extends PluginBase implements Listener{
                 foreach($event->getTargets() as $target){
                     $player = $target->getPlayer();
                     $times = 5;
-                    $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
+                    $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, &$times) : void {
+                        if($times-- === 0 || !$player->isOnline()){
+                            throw new CancelTaskException();
+                        }
                         $attr = $player->getAttributeMap()->get(Attribute::EXPERIENCE_LEVEL);
                         /** @noinspection NullPointerExceptionInspection */
                         $entries = [new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), [])];
-                        if($player->isOnline()){
-                            $target->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
-                        }
-                        if(--$times === 0){
-                            throw new CancelTaskException();
-                        }
+                        $player->getNetworkSession()->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
                     }), 10);
                 }
             }
