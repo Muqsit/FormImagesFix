@@ -30,9 +30,6 @@ final class Main extends PluginBase implements Listener{
             if($packet instanceof ModalFormRequestPacket){
                 foreach($event->getTargets() as $target){
                     $player = $target->getPlayer();
-                    $ts = time();
-                    $pk = NetworkStackLatencyPacket::request($ts);
-                    $player->getNetworkSession()->sendDataPacket($pk);
                     if($player->isOnline()){
                         $times = 5;
                         $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(static function() use($player, $target, &$times) : void{
