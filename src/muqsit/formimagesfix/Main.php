@@ -12,6 +12,7 @@ use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\types\entity\Attribute as NetworkAttribute;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\plugin\PluginBase;
+use pocketmine\scheduler\CancelTaskException;
 use pocketmine\scheduler\ClosureTask;
 
 final class Main extends PluginBase implements Listener{
@@ -29,7 +30,7 @@ final class Main extends PluginBase implements Listener{
             if($packet instanceof ModalFormRequestPacket){
                 foreach($event->getTargets() as $target){
                     $player = $target->getPlayer();
-                    $ts = mt_rand() * 1000;
+                    $ts = time();
                     $pk = new NetworkStackLatencyPacket();
                     $pk->timestamp = $ts;
                     $pk->needResponse = true;
@@ -42,6 +43,9 @@ final class Main extends PluginBase implements Listener{
                             /** @noinspection NullPointerExceptionInspection */
                             $entries[] = new NetworkAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getDefaultValue(), []);
                             $target->sendDataPacket(UpdateAttributesPacket::create($player->getId(), $entries, 0));
+                            if(--$times === 0){
+                                throw new CancelTaskException();
+                            }
                         }), 10);
                     }
                 }
