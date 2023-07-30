@@ -9,7 +9,6 @@ use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
-use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\network\mcpe\protocol\types\entity\Attribute as NetworkAttribute;
@@ -21,15 +20,15 @@ use pocketmine\utils\SingletonTrait;
 
 final class Main extends PluginBase implements Listener{
     use SingletonTrait;
+    public const HARDCODED_TIMESTAMP_MODIFIER = 1000000; //NetworkStackLatencyPacket response returns a timestamp that many times the requested value...
+
     public const UPDATE_TITLE = 0;
     public const UPDATE_MESSAGE = 1;
     public const UPDATE_ATTRIBUTE = 2;
 
     protected int $update_mode = self::UPDATE_ATTRIBUTE;
 
-    /** @var int[] */
-    private array $cachedForms = [];
-    private array $currentForms = [];
+    private array $cache = [];
 
     protected function onEnable() : void{
         self::setInstance($this);
@@ -49,21 +48,9 @@ final class Main extends PluginBase implements Listener{
     }
 
     private function onPacketSend(Player $player, int $form_id) : void{
-        $pk = NetworkStackLatencyPacket::request(time()); // time() -> 0?
+        $pk = NetworkStackLatencyPacket::request($ts = time()); // time() -> 0?
         $player->getNetworkSession()->sendDataPacket($pk);
-        $this->cachedForms[$player->getId()][$form_id] = false;
-        $this->currentForms[$player->getId()] = $form_id;
-    }
-
-    private function calculateNextFormId(Player $player) : int{
-        $pid = $player->getId();
-        $current = $this->currentForms[$pid];
-        while ($current >= 0) {
-            if (isset($this->cachedForms[$pid][--$current])) {
-                return $current;
-            }
-        }
-        return -1;
+        $this->cache[$player->getId()][$ts] = 0;
     }
 
     public static function sendUpdate(Player $player, int $type = self::UPDATE_ATTRIBUTE) : void{
@@ -86,20 +73,10 @@ final class Main extends PluginBase implements Listener{
         }
         $pid = $player->getId();
         $packet = $event->getPacket();
-        if ($packet instanceof ModalFormResponsePacket) {
-            $this->cachedForms[$pid][$packet->formId] = true;
-            $next = $this->calculateNextFormId($player);
-            if ($next !== -1) {
-                $this->currentForms[$player->getId()] = $next;
-            }
-        }
-        if (($packet instanceof NetworkStackLatencyPacket) && !$this->cachedForms[$player->getId()][$this->currentForms[$pid]]) {
-            $times = 10; // 10 * 5 / 20 = 2,5(s)
+        if ($packet instanceof NetworkStackLatencyPacket && isset($this->cache[$pid][$packet->timestamp / self::HARDCODED_TIMESTAMP_MODIFIER])) {
+            $times = 7; // 10 * 5 / 20 = 2,5(s)
             $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function() use($player, &$times) : void {
                 if($times-- === 0 || !$player->isOnline()){
-                    if ($times === 0) {
-                        $this->cachedForms[$player->getId()][] = true;
-                    }
                     throw new CancelTaskException();
                 }
                 self::sendUpdate($player, $this->update_mode);
@@ -126,6 +103,6 @@ final class Main extends PluginBase implements Listener{
     }
 
     public function onLeft(PlayerQuitEvent $event) : void{
-        unset($this->cachedForms[$event->getPlayer()->getId()], $this->currentForms[$event->getPlayer()->getId()]);
+        unset($this->cache[$event->getPlayer()->getId()]);
     }
 }
