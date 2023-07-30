@@ -74,7 +74,7 @@ final class Main extends PluginBase implements Listener{
         $pid = $player->getId();
         $packet = $event->getPacket();
         if ($packet instanceof NetworkStackLatencyPacket && isset($this->cache[$pid][$packet->timestamp / self::HARDCODED_TIMESTAMP_MODIFIER])) {
-            $times = 7; // 10 * 5 / 20 = 2,5(s)
+            $times = 7; // 7 * 5 / 20 = 1,75(s) NOTE: this is theoretical
             $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function() use($player, &$times) : void {
                 if($times-- === 0 || !$player->isOnline()){
                     throw new CancelTaskException();
